@@ -267,9 +267,8 @@
         async function loadLogs(classId, subjectId) {
             document.getElementById('currentFilter').innerText = `(${classId} - ${subjectId})`;
             const q = query(collection(db, "teaching_logs"), 
-                            where("classId", "==", classId), 
-                            where("subjectId", "==", subjectId),
-                            orderBy("timestamp", "asc"));
+                where("classId", "==", classId), 
+                where("subjectId", "==", subjectId));
             const snap = await getDocs(q);
             
             let html = "";
