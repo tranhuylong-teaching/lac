@@ -8,6 +8,7 @@
     <style>
         body { background-color: #f8f9fa; }
         .card { box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .cursor-pointer { cursor: pointer; }
     </style>
 </head>
 <body>
@@ -83,27 +84,42 @@
             </div>
 
             <div class="tab-pane fade" id="lophoc">
-                <form id="classForm" class="w-50">
-                    <div class="input-group mb-3">
-                        <input type="text" id="className" class="form-control" placeholder="Tên lớp (VD: 10A1)" required>
-                        <button class="btn btn-success" type="submit">Thêm Lớp</button>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="mb-3">Thêm Lớp Mới</h5>
+                        <form id="classForm">
+                            <div class="input-group mb-4">
+                                <input type="text" id="className" class="form-control" placeholder="Tên lớp (VD: 10A1)" required>
+                                <button class="btn btn-success" type="submit">Thêm Lớp</button>
+                            </div>
+                        </form>
+                        <h5 class="mb-3">Danh sách lớp học:</h5>
+                        <ul id="classList" class="list-group"></ul>
                     </div>
-                </form>
-                <ul id="classList" class="list-group w-50"></ul>
+                </div>
             </div>
 
             <div class="tab-pane fade" id="monhoc">
-                <form id="subjectForm" class="w-75">
-                    <div class="mb-3">
-                        <label>Tên Môn Học</label>
-                        <input type="text" id="subjectName" class="form-control" placeholder="VD: Lập trình Web" required>
+                <div class="row">
+                    <div class="col-md-5">
+                        <h5 class="mb-3">Thêm Môn Mới</h5>
+                        <form id="subjectForm" class="mb-4">
+                            <div class="mb-3">
+                                <label>Tên Môn Học</label>
+                                <input type="text" id="subjectName" class="form-control" placeholder="VD: Lập trình Web" required>
+                            </div>
+                            <div class="mb-3">
+                                <label>Cấu trúc Chương (Tên Chương, LT, TH, KT)</label>
+                                <textarea id="subjectChapters" class="form-control" rows="5" placeholder="Chương 1, 5, 5, 0&#10;Chương 2, 1, 1, 1" required></textarea>
+                            </div>
+                            <button class="btn btn-success w-100" type="submit">Lưu Cấu Trúc Môn</button>
+                        </form>
                     </div>
-                    <div class="mb-3">
-                        <label>Cấu trúc Chương (Mỗi dòng 1 chương: Tên Chương, LT, TH, KT)</label>
-                        <textarea id="subjectChapters" class="form-control" rows="5" placeholder="Chương 1, 5, 5, 0&#10;Chương 2, 1, 1, 1" required></textarea>
+                    <div class="col-md-7">
+                        <h5 class="mb-3">Danh sách môn học:</h5>
+                        <ul id="subjectList" class="list-group"></ul>
                     </div>
-                    <button class="btn btn-success" type="submit">Thêm Môn Cùng Cấu Trúc</button>
-                </form>
+                </div>
             </div>
             
         </div>
@@ -113,17 +129,17 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // === BƯỚC 1: ĐIỀN CẤU HÌNH FIREBASE CỦA BẠN VÀO ĐÂY ===
+        // === ĐIỀN CẤU HÌNH FIREBASE VÀO ĐÂY ===
         const firebaseConfig = {
-			apiKey: "AIzaSyDLxzBHHGWvRW8CLtHORxNRzZHRU5TmEr0",
-			authDomain: "teaching-lac.firebaseapp.com",
-			projectId: "teaching-lac",
-			storageBucket: "teaching-lac.firebasestorage.app",
-			messagingSenderId: "941112002848",
-			appId: "1:941112002848:web:5ffffe04f90bec668caf45"
-		};
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -132,11 +148,17 @@
         document.getElementById('classForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('className').value.trim();
-            await setDoc(doc(db, "classes", name), { name: name }); // Dùng tên làm ID luôn
-            alert("Đã thêm lớp!");
+            await setDoc(doc(db, "classes", name), { name: name });
             document.getElementById('className').value = "";
             loadClasses();
         });
+
+        window.deleteClass = async (id) => {
+            if(confirm(`Bạn có chắc muốn xóa lớp ${id}?`)) {
+                await deleteDoc(doc(db, "classes", id));
+                loadClasses();
+            }
+        };
 
         // --- Logic Quản Lý Môn Học ---
         document.getElementById('subjectForm').addEventListener('submit', async (e) => {
@@ -144,7 +166,6 @@
             const name = document.getElementById('subjectName').value.trim();
             const text = document.getElementById('subjectChapters').value.trim();
             
-            // Parse text sang mảng object
             const chapters = text.split('\n').map(line => {
                 const parts = line.split(',');
                 return { 
@@ -156,24 +177,61 @@
             });
 
             await setDoc(doc(db, "subjects", name), { name: name, chapters: chapters });
-            alert("Đã thêm môn học!");
             document.getElementById('subjectForm').reset();
             loadSubjects();
         });
 
-        // --- Load dữ liệu cho Select Box ---
+        window.deleteSubject = async (id) => {
+            if(confirm(`Bạn có chắc muốn xóa môn ${id}?`)) {
+                await deleteDoc(doc(db, "subjects", id));
+                loadSubjects();
+            }
+        };
+
+        // --- Load dữ liệu Lớp ---
         async function loadClasses() {
             const snap = await getDocs(collection(db, "classes"));
-            let html = '<option value="">Chọn lớp...</option>';
-            snap.forEach(doc => { html += `<option value="${doc.id}">${doc.id}</option>`; });
-            document.getElementById('logClass').innerHTML = html;
+            let htmlSelect = '<option value="">Chọn lớp...</option>';
+            let htmlList = '';
+            
+            snap.forEach(doc => { 
+                htmlSelect += `<option value="${doc.id}">${doc.id}</option>`; 
+                htmlList += `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    ${doc.id}
+                    <button class="btn btn-sm btn-danger" onclick="deleteClass('${doc.id}')">Xóa</button>
+                </li>`;
+            });
+            
+            document.getElementById('logClass').innerHTML = htmlSelect;
+            document.getElementById('classList').innerHTML = htmlList;
         }
 
+        // --- Load dữ liệu Môn ---
         async function loadSubjects() {
             const snap = await getDocs(collection(db, "subjects"));
-            let html = '<option value="">Chọn môn...</option>';
-            snap.forEach(doc => { html += `<option value="${doc.id}">${doc.id}</option>`; });
-            document.getElementById('logSubject').innerHTML = html;
+            let htmlSelect = '<option value="">Chọn môn...</option>';
+            let htmlList = '';
+            
+            snap.forEach(doc => { 
+                htmlSelect += `<option value="${doc.id}">${doc.id}</option>`;
+                
+                let chaptersHtml = doc.data().chapters.map(c => 
+                    `<span class="badge bg-secondary me-1 mt-1">${c.name} (LT:${c.lt}, TH:${c.th}, KT:${c.kt})</span>`
+                ).join('');
+
+                htmlList += `
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div>
+                        <strong class="text-primary">${doc.id}</strong><br>
+                        <div>${chaptersHtml}</div>
+                    </div>
+                    <button class="btn btn-sm btn-danger ms-2 mt-1" onclick="deleteSubject('${doc.id}')">Xóa</button>
+                </li>`;
+            });
+            
+            document.getElementById('logSubject').innerHTML = htmlSelect;
+            document.getElementById('subjectList').innerHTML = htmlList;
         }
 
         // --- THUẬT TOÁN & LƯU BÁO GIẢNG ---
@@ -187,12 +245,12 @@
             
             if(absentStr === "0") absentStr = "Lớp đủ";
 
-            // 1. Lấy cấu trúc môn học
+            // 1. Lấy cấu trúc môn
             const subjectSnap = await getDocs(query(collection(db, "subjects"), where("name", "==", subjectId)));
             let chapters = [];
             subjectSnap.forEach(doc => chapters = doc.data().chapters);
 
-            // 2. Tính tổng số giờ đã dạy của Lớp + Môn này
+            // 2. Tính tổng giờ đã dạy
             const logsSnap = await getDocs(query(collection(db, "teaching_logs"), where("classId", "==", classId), where("subjectId", "==", subjectId)));
             let pastTotalHours = 0;
             logsSnap.forEach(doc => {
@@ -200,7 +258,7 @@
                 pastTotalHours += (data.lt + data.th + data.kt);
             });
 
-            // 3. Thuật toán trừ lùi tuần tự
+            // 3. Phân bổ giờ (Trừ lùi)
             let offset = pastTotalHours;
             let results = [];
 
@@ -221,7 +279,7 @@
                     if (slot.cap === 0) continue;
 
                     if (offset >= slot.cap) {
-                        offset -= slot.cap; // Bỏ qua vì đã dạy đủ
+                        offset -= slot.cap; 
                     } else {
                         let available = slot.cap - offset;
                         let allocate = Math.min(newHours, available);
@@ -243,7 +301,8 @@
                 }
             }
 
-            // 4. Lưu từng dòng kết quả vào db
+            // 4. Lưu dữ liệu với Unix Time để JS tự sắp xếp
+            const nowTime = new Date().getTime();
             for(let res of results) {
                 await addDoc(collection(db, "teaching_logs"), {
                     classId: classId,
@@ -254,7 +313,7 @@
                     th: res.th,
                     kt: res.kt,
                     absent: absentStr,
-                    timestamp: serverTimestamp() // Để sort đúng thứ tự
+                    createdAt: nowTime // Tự sinh time ở client
                 });
             }
 
@@ -263,20 +322,26 @@
             loadLogs(classId, subjectId);
         });
 
-        // --- Render Bảng ---
+        // --- Render Bảng Báo Giảng ---
         async function loadLogs(classId, subjectId) {
             document.getElementById('currentFilter').innerText = `(${classId} - ${subjectId})`;
+            
+            // Bỏ orderBy để tránh lỗi Index của Firebase
             const q = query(collection(db, "teaching_logs"), 
-                where("classId", "==", classId), 
-                where("subjectId", "==", subjectId));
+                            where("classId", "==", classId), 
+                            where("subjectId", "==", subjectId));
+            
             const snap = await getDocs(q);
+            
+            // Xử lý sắp xếp bằng JavaScript trên trình duyệt
+            let logsArray = [];
+            snap.forEach(doc => logsArray.push(doc.data()));
+            logsArray.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
             
             let html = "";
             let stt = 1;
 
-            snap.forEach(doc => {
-                const data = doc.data();
-                // Format ngày DD/MM/YYYY
+            logsArray.forEach(data => {
                 const d = new Date(data.date);
                 const dateStr = `${("0" + d.getDate()).slice(-2)}/${("0" + (d.getMonth() + 1)).slice(-2)}/${d.getFullYear()}`;
                 
@@ -294,7 +359,7 @@
             document.getElementById('tableBody').innerHTML = html;
         }
 
-        // --- Lắng nghe sự kiện đổi select để load lại bảng ---
+        // --- Lắng nghe Select ---
         document.getElementById('logClass').addEventListener('change', () => {
             const cid = document.getElementById('logClass').value;
             const sid = document.getElementById('logSubject').value;
@@ -309,6 +374,9 @@
         // Init
         loadClasses();
         loadSubjects();
+        
+        // Cài ngày hiện tại mặc định cho ô Date
+        document.getElementById('logDate').valueAsDate = new Date();
     </script>
 </body>
 </html>
