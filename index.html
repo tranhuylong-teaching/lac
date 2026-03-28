@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản Lý Báo Giảng</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <style>
         body { background-color: #f8f9fa; }
         .card { box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .cursor-pointer { cursor: pointer; }
     </style>
 </head>
 <body>
@@ -61,9 +61,13 @@
                     </div>
                     
                     <div class="col-md-8">
-                        <h5 class="mb-3">Danh sách báo giảng <span id="currentFilter" class="text-success"></span></h5>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">Danh sách báo giảng <span id="currentFilter" class="text-success"></span></h5>
+                            <button id="btnExport" class="btn btn-success btn-sm">Xuất Excel</button>
+                        </div>
+                        
                         <div class="table-responsive">
-                            <table class="table table-bordered table-hover text-center align-middle">
+                            <table class="table table-bordered table-hover text-center align-middle" id="logTable">
                                 <thead class="table-dark">
                                     <tr>
                                         <th>STT</th>
@@ -73,6 +77,7 @@
                                         <th>TH</th>
                                         <th>KT</th>
                                         <th>DS Vắng</th>
+                                        <th>Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tableBody">
@@ -133,18 +138,18 @@
 
         // === ĐIỀN CẤU HÌNH FIREBASE VÀO ĐÂY ===
         const firebaseConfig = {
-          apiKey: "AIzaSyDLxzBHHGWvRW8CLtHORxNRzZHRU5TmEr0",
-          authDomain: "teaching-lac.firebaseapp.com",
-          projectId: "teaching-lac",
-          storageBucket: "teaching-lac.firebasestorage.app",
-          messagingSenderId: "941112002848",
-          appId: "1:941112002848:web:5ffffe04f90bec668caf45"
+            apiKey: "AIzaSyDLxzBHHGWvRW8CLtHORxNRzZHRU5TmEr0",
+            authDomain: "teaching-lac.firebaseapp.com",
+            projectId: "teaching-lac",
+            storageBucket: "teaching-lac.firebasestorage.app",
+            messagingSenderId: "941112002848",
+            appId: "1:941112002848:web:5ffffe04f90bec668caf45"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- Logic Quản Lý Lớp Học ---
+        // --- Logic Quản Lý Lớp & Môn (Giữ nguyên) ---
         document.getElementById('classForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('className').value.trim();
@@ -160,7 +165,6 @@
             }
         };
 
-        // --- Logic Quản Lý Môn Học ---
         document.getElementById('subjectForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('subjectName').value.trim();
@@ -168,12 +172,7 @@
             
             const chapters = text.split('\n').map(line => {
                 const parts = line.split(',');
-                return { 
-                    name: parts[0].trim(), 
-                    lt: Number(parts[1]), 
-                    th: Number(parts[2]), 
-                    kt: Number(parts[3]) 
-                };
+                return { name: parts[0].trim(), lt: Number(parts[1]), th: Number(parts[2]), kt: Number(parts[3]) };
             });
 
             await setDoc(doc(db, "subjects", name), { name: name, chapters: chapters });
@@ -188,53 +187,32 @@
             }
         };
 
-        // --- Load dữ liệu Lớp ---
         async function loadClasses() {
             const snap = await getDocs(collection(db, "classes"));
             let htmlSelect = '<option value="">Chọn lớp...</option>';
             let htmlList = '';
-            
             snap.forEach(doc => { 
                 htmlSelect += `<option value="${doc.id}">${doc.id}</option>`; 
-                htmlList += `
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    ${doc.id}
-                    <button class="btn btn-sm btn-danger" onclick="deleteClass('${doc.id}')">Xóa</button>
-                </li>`;
+                htmlList += `<li class="list-group-item d-flex justify-content-between align-items-center">${doc.id}<button class="btn btn-sm btn-danger" onclick="deleteClass('${doc.id}')">Xóa</button></li>`;
             });
-            
             document.getElementById('logClass').innerHTML = htmlSelect;
             document.getElementById('classList').innerHTML = htmlList;
         }
 
-        // --- Load dữ liệu Môn ---
         async function loadSubjects() {
             const snap = await getDocs(collection(db, "subjects"));
             let htmlSelect = '<option value="">Chọn môn...</option>';
             let htmlList = '';
-            
             snap.forEach(doc => { 
                 htmlSelect += `<option value="${doc.id}">${doc.id}</option>`;
-                
-                let chaptersHtml = doc.data().chapters.map(c => 
-                    `<span class="badge bg-secondary me-1 mt-1">${c.name} (LT:${c.lt}, TH:${c.th}, KT:${c.kt})</span>`
-                ).join('');
-
-                htmlList += `
-                <li class="list-group-item d-flex justify-content-between align-items-start">
-                    <div>
-                        <strong class="text-primary">${doc.id}</strong><br>
-                        <div>${chaptersHtml}</div>
-                    </div>
-                    <button class="btn btn-sm btn-danger ms-2 mt-1" onclick="deleteSubject('${doc.id}')">Xóa</button>
-                </li>`;
+                let chaptersHtml = doc.data().chapters.map(c => `<span class="badge bg-secondary me-1 mt-1">${c.name} (LT:${c.lt}, TH:${c.th}, KT:${c.kt})</span>`).join('');
+                htmlList += `<li class="list-group-item d-flex justify-content-between align-items-start"><div><strong class="text-primary">${doc.id}</strong><br><div>${chaptersHtml}</div></div><button class="btn btn-sm btn-danger ms-2 mt-1" onclick="deleteSubject('${doc.id}')">Xóa</button></li>`;
             });
-            
             document.getElementById('logSubject').innerHTML = htmlSelect;
             document.getElementById('subjectList').innerHTML = htmlList;
         }
 
-        // --- THUẬT TOÁN & LƯU BÁO GIẢNG ---
+        // --- THUẬT TOÁN LƯU BÁO GIẢNG ---
         document.getElementById('logForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const date = document.getElementById('logDate').value;
@@ -245,12 +223,10 @@
             
             if(absentStr === "0") absentStr = "Lớp đủ";
 
-            // 1. Lấy cấu trúc môn
             const subjectSnap = await getDocs(query(collection(db, "subjects"), where("name", "==", subjectId)));
             let chapters = [];
             subjectSnap.forEach(doc => chapters = doc.data().chapters);
 
-            // 2. Tính tổng giờ đã dạy
             const logsSnap = await getDocs(query(collection(db, "teaching_logs"), where("classId", "==", classId), where("subjectId", "==", subjectId)));
             let pastTotalHours = 0;
             logsSnap.forEach(doc => {
@@ -258,51 +234,35 @@
                 pastTotalHours += (data.lt + data.th + data.kt);
             });
 
-            // 3. Phân bổ giờ (Trừ lùi)
             let offset = pastTotalHours;
             let results = [];
 
             for (let chap of chapters) {
                 if (newHours <= 0) break;
-
-                const slots = [
-                    { type: 'lt', cap: chap.lt },
-                    { type: 'th', cap: chap.th },
-                    { type: 'kt', cap: chap.kt }
-                ];
-
+                const slots = [{ type: 'lt', cap: chap.lt }, { type: 'th', cap: chap.th }, { type: 'kt', cap: chap.kt }];
                 let allocatedThisChap = { lt: 0, th: 0, kt: 0 };
                 let usedChap = false;
 
                 for (let slot of slots) {
                     if (newHours <= 0) break;
                     if (slot.cap === 0) continue;
-
                     if (offset >= slot.cap) {
                         offset -= slot.cap; 
                     } else {
                         let available = slot.cap - offset;
                         let allocate = Math.min(newHours, available);
-                        
                         allocatedThisChap[slot.type] = allocate;
                         newHours -= allocate;
                         offset = 0; 
                         usedChap = true;
                     }
                 }
-
                 if (usedChap) {
-                    results.push({
-                        chapterName: chap.name,
-                        lt: allocatedThisChap.lt,
-                        th: allocatedThisChap.th,
-                        kt: allocatedThisChap.kt
-                    });
+                    results.push({ chapterName: chap.name, lt: allocatedThisChap.lt, th: allocatedThisChap.th, kt: allocatedThisChap.kt });
                 }
             }
 
-            // 4. Lưu dữ liệu với Unix Time để JS tự sắp xếp
-            const nowTime = new Date().getTime();
+            const nowTime = new Date().getTime(); // ID chung cho lô dữ liệu này
             for(let res of results) {
                 await addDoc(collection(db, "teaching_logs"), {
                     classId: classId,
@@ -313,7 +273,7 @@
                     th: res.th,
                     kt: res.kt,
                     absent: absentStr,
-                    createdAt: nowTime // Tự sinh time ở client
+                    createdAt: nowTime
                 });
             }
 
@@ -326,16 +286,11 @@
         async function loadLogs(classId, subjectId) {
             document.getElementById('currentFilter').innerText = `(${classId} - ${subjectId})`;
             
-            // Bỏ orderBy để tránh lỗi Index của Firebase
-            const q = query(collection(db, "teaching_logs"), 
-                            where("classId", "==", classId), 
-                            where("subjectId", "==", subjectId));
-            
+            const q = query(collection(db, "teaching_logs"), where("classId", "==", classId), where("subjectId", "==", subjectId));
             const snap = await getDocs(q);
             
-            // Xử lý sắp xếp bằng JavaScript trên trình duyệt
             let logsArray = [];
-            snap.forEach(doc => logsArray.push(doc.data()));
+            snap.forEach(doc => logsArray.push({ id: doc.id, ...doc.data() }));
             logsArray.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
             
             let html = "";
@@ -354,12 +309,56 @@
                     <td>${data.th}</td>
                     <td>${data.kt}</td>
                     <td>${data.absent}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteLogBatch(${data.createdAt})">Xóa</button>
+                    </td>
                 </tr>`;
             });
             document.getElementById('tableBody').innerHTML = html;
         }
 
-        // --- Lắng nghe Select ---
+        // --- Xóa Dữ Liệu Báo Giảng (Xóa theo lô cùng thời điểm nhập) ---
+        window.deleteLogBatch = async (createdAtTimestamp) => {
+            if(confirm('Bạn có chắc muốn xóa lượt nhập này?\n(Hệ thống sẽ xóa tất cả các dòng báo giảng được chia ra từ lượt nhập đó)')) {
+                // Truy vấn tất cả document có cùng createdAt
+                const q = query(collection(db, "teaching_logs"), where("createdAt", "==", createdAtTimestamp));
+                const snap = await getDocs(q);
+                
+                // Chạy vòng lặp xóa từng document
+                snap.forEach(async (d) => {
+                    await deleteDoc(doc(db, "teaching_logs", d.id));
+                });
+
+                // Tải lại bảng sau khi xóa (đợi một chút để Firebase xóa xong)
+                setTimeout(() => {
+                    const cid = document.getElementById('logClass').value;
+                    const sid = document.getElementById('logSubject').value;
+                    if(cid && sid) loadLogs(cid, sid);
+                }, 500);
+            }
+        };
+
+        // --- Xuất Excel ---
+        document.getElementById('btnExport').addEventListener('click', () => {
+            const cid = document.getElementById('logClass').value || "Lop";
+            const sid = document.getElementById('logSubject').value || "Mon";
+            
+            // Clone cái bảng hiện tại ra để xử lý ngầm (tránh làm mất giao diện web)
+            let tableClone = document.getElementById("logTable").cloneNode(true);
+            
+            // Xóa cột cuối cùng (cột "Thao tác") trước khi xuất Excel
+            tableClone.querySelectorAll('tr').forEach(row => {
+                if(row.lastElementChild) {
+                    row.removeChild(row.lastElementChild);
+                }
+            });
+
+            // Chuyển đổi và tải file
+            let wb = XLSX.utils.table_to_book(tableClone, {sheet: "Báo Giảng"});
+            XLSX.writeFile(wb, `BaoGiang_${cid}_${sid}.xlsx`);
+        });
+
+        // --- Lắng nghe Select & Khởi tạo ---
         document.getElementById('logClass').addEventListener('change', () => {
             const cid = document.getElementById('logClass').value;
             const sid = document.getElementById('logSubject').value;
@@ -371,11 +370,8 @@
             if(cid && sid) loadLogs(cid, sid);
         });
 
-        // Init
         loadClasses();
         loadSubjects();
-        
-        // Cài ngày hiện tại mặc định cho ô Date
         document.getElementById('logDate').valueAsDate = new Date();
     </script>
 </body>
