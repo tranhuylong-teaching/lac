@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Báo Giảng</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .card { box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2 class="mb-4 text-primary text-center">Hệ Thống Lập Báo Giảng Tự Động</h2>
+        
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#baogiang">Báo Giảng</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#lophoc">Quản lý Lớp</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#monhoc">Quản lý Môn</button>
+            </li>
+        </ul>
+
+        <div class="tab-content bg-white p-4 border border-top-0 rounded-bottom" id="myTabContent">
+            
+            <div class="tab-pane fade show active" id="baogiang">
+                <div class="row">
+                    <div class="col-md-4 mb-4">
+                        <div class="card p-3">
+                            <h5 class="card-title">Nhập Giờ Dạy</h5>
+                            <form id="logForm">
+                                <div class="mb-2">
+                                    <label>Ngày dạy</label>
+                                    <input type="date" id="logDate" class="form-control" required>
+                                </div>
+                                <div class="mb-2">
+                                    <label>Lớp học</label>
+                                    <select id="logClass" class="form-select" required><option value="">Chọn lớp...</option></select>
+                                </div>
+                                <div class="mb-2">
+                                    <label>Môn học</label>
+                                    <select id="logSubject" class="form-select" required><option value="">Chọn môn...</option></select>
+                                </div>
+                                <div class="mb-2">
+                                    <label>Số giờ dạy</label>
+                                    <input type="number" id="logHours" class="form-control" min="1" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label>Danh sách vắng (nhập 0 nếu đủ)</label>
+                                    <input type="text" id="logAbsent" class="form-control" placeholder="VD: Long(P); Tuấn(K)" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100" id="btnSaveLog">Lưu Báo Giảng</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-8">
+                        <h5 class="mb-3">Danh sách báo giảng <span id="currentFilter" class="text-success"></span></h5>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover text-center align-middle">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>STT</th>
+                                        <th>Ngày</th>
+                                        <th>Nội dung (Chương)</th>
+                                        <th>LT</th>
+                                        <th>TH</th>
+                                        <th>KT</th>
+                                        <th>DS Vắng</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableBody">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="lophoc">
+                <form id="classForm" class="w-50">
+                    <div class="input-group mb-3">
+                        <input type="text" id="className" class="form-control" placeholder="Tên lớp (VD: 10A1)" required>
+                        <button class="btn btn-success" type="submit">Thêm Lớp</button>
+                    </div>
+                </form>
+                <ul id="classList" class="list-group w-50"></ul>
+            </div>
+
+            <div class="tab-pane fade" id="monhoc">
+                <form id="subjectForm" class="w-75">
+                    <div class="mb-3">
+                        <label>Tên Môn Học</label>
+                        <input type="text" id="subjectName" class="form-control" placeholder="VD: Lập trình Web" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Cấu trúc Chương (Mỗi dòng 1 chương: Tên Chương, LT, TH, KT)</label>
+                        <textarea id="subjectChapters" class="form-control" rows="5" placeholder="Chương 1, 5, 5, 0&#10;Chương 2, 1, 1, 1" required></textarea>
+                    </div>
+                    <button class="btn btn-success" type="submit">Thêm Môn Cùng Cấu Trúc</button>
+                </form>
+            </div>
+            
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // === BƯỚC 1: ĐIỀN CẤU HÌNH FIREBASE CỦA BẠN VÀO ĐÂY ===
+        const firebaseConfig = {
+			apiKey: "AIzaSyDLxzBHHGWvRW8CLtHORxNRzZHRU5TmEr0",
+			authDomain: "teaching-lac.firebaseapp.com",
+			projectId: "teaching-lac",
+			storageBucket: "teaching-lac.firebasestorage.app",
+			messagingSenderId: "941112002848",
+			appId: "1:941112002848:web:5ffffe04f90bec668caf45"
+		};
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- Logic Quản Lý Lớp Học ---
+        document.getElementById('classForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('className').value.trim();
+            await setDoc(doc(db, "classes", name), { name: name }); // Dùng tên làm ID luôn
+            alert("Đã thêm lớp!");
+            document.getElementById('className').value = "";
+            loadClasses();
+        });
+
+        // --- Logic Quản Lý Môn Học ---
+        document.getElementById('subjectForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('subjectName').value.trim();
+            const text = document.getElementById('subjectChapters').value.trim();
+            
+            // Parse text sang mảng object
+            const chapters = text.split('\n').map(line => {
+                const parts = line.split(',');
+                return { 
+                    name: parts[0].trim(), 
+                    lt: Number(parts[1]), 
+                    th: Number(parts[2]), 
+                    kt: Number(parts[3]) 
+                };
+            });
+
+            await setDoc(doc(db, "subjects", name), { name: name, chapters: chapters });
+            alert("Đã thêm môn học!");
+            document.getElementById('subjectForm').reset();
+            loadSubjects();
+        });
+
+        // --- Load dữ liệu cho Select Box ---
+        async function loadClasses() {
+            const snap = await getDocs(collection(db, "classes"));
+            let html = '<option value="">Chọn lớp...</option>';
+            snap.forEach(doc => { html += `<option value="${doc.id}">${doc.id}</option>`; });
+            document.getElementById('logClass').innerHTML = html;
+        }
+
+        async function loadSubjects() {
+            const snap = await getDocs(collection(db, "subjects"));
+            let html = '<option value="">Chọn môn...</option>';
+            snap.forEach(doc => { html += `<option value="${doc.id}">${doc.id}</option>`; });
+            document.getElementById('logSubject').innerHTML = html;
+        }
+
+        // --- THUẬT TOÁN & LƯU BÁO GIẢNG ---
+        document.getElementById('logForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const date = document.getElementById('logDate').value;
+            const classId = document.getElementById('logClass').value;
+            const subjectId = document.getElementById('logSubject').value;
+            let newHours = Number(document.getElementById('logHours').value);
+            let absentStr = document.getElementById('logAbsent').value.trim();
+            
+            if(absentStr === "0") absentStr = "Lớp đủ";
+
+            // 1. Lấy cấu trúc môn học
+            const subjectSnap = await getDocs(query(collection(db, "subjects"), where("name", "==", subjectId)));
+            let chapters = [];
+            subjectSnap.forEach(doc => chapters = doc.data().chapters);
+
+            // 2. Tính tổng số giờ đã dạy của Lớp + Môn này
+            const logsSnap = await getDocs(query(collection(db, "teaching_logs"), where("classId", "==", classId), where("subjectId", "==", subjectId)));
+            let pastTotalHours = 0;
+            logsSnap.forEach(doc => {
+                const data = doc.data();
+                pastTotalHours += (data.lt + data.th + data.kt);
+            });
+
+            // 3. Thuật toán trừ lùi tuần tự
+            let offset = pastTotalHours;
+            let results = [];
+
+            for (let chap of chapters) {
+                if (newHours <= 0) break;
+
+                const slots = [
+                    { type: 'lt', cap: chap.lt },
+                    { type: 'th', cap: chap.th },
+                    { type: 'kt', cap: chap.kt }
+                ];
+
+                let allocatedThisChap = { lt: 0, th: 0, kt: 0 };
+                let usedChap = false;
+
+                for (let slot of slots) {
+                    if (newHours <= 0) break;
+                    if (slot.cap === 0) continue;
+
+                    if (offset >= slot.cap) {
+                        offset -= slot.cap; // Bỏ qua vì đã dạy đủ
+                    } else {
+                        let available = slot.cap - offset;
+                        let allocate = Math.min(newHours, available);
+                        
+                        allocatedThisChap[slot.type] = allocate;
+                        newHours -= allocate;
+                        offset = 0; 
+                        usedChap = true;
+                    }
+                }
+
+                if (usedChap) {
+                    results.push({
+                        chapterName: chap.name,
+                        lt: allocatedThisChap.lt,
+                        th: allocatedThisChap.th,
+                        kt: allocatedThisChap.kt
+                    });
+                }
+            }
+
+            // 4. Lưu từng dòng kết quả vào db
+            for(let res of results) {
+                await addDoc(collection(db, "teaching_logs"), {
+                    classId: classId,
+                    subjectId: subjectId,
+                    date: date,
+                    chapterName: res.chapterName,
+                    lt: res.lt,
+                    th: res.th,
+                    kt: res.kt,
+                    absent: absentStr,
+                    timestamp: serverTimestamp() // Để sort đúng thứ tự
+                });
+            }
+
+            document.getElementById('logHours').value = "";
+            document.getElementById('logAbsent').value = "";
+            loadLogs(classId, subjectId);
+        });
+
+        // --- Render Bảng ---
+        async function loadLogs(classId, subjectId) {
+            document.getElementById('currentFilter').innerText = `(${classId} - ${subjectId})`;
+            const q = query(collection(db, "teaching_logs"), 
+                            where("classId", "==", classId), 
+                            where("subjectId", "==", subjectId),
+                            orderBy("timestamp", "asc"));
+            const snap = await getDocs(q);
+            
+            let html = "";
+            let stt = 1;
+
+            snap.forEach(doc => {
+                const data = doc.data();
+                // Format ngày DD/MM/YYYY
+                const d = new Date(data.date);
+                const dateStr = `${("0" + d.getDate()).slice(-2)}/${("0" + (d.getMonth() + 1)).slice(-2)}/${d.getFullYear()}`;
+                
+                html += `
+                <tr>
+                    <td>${stt++}</td>
+                    <td>${dateStr}</td>
+                    <td class="text-start">${data.chapterName}</td>
+                    <td>${data.lt}</td>
+                    <td>${data.th}</td>
+                    <td>${data.kt}</td>
+                    <td>${data.absent}</td>
+                </tr>`;
+            });
+            document.getElementById('tableBody').innerHTML = html;
+        }
+
+        // --- Lắng nghe sự kiện đổi select để load lại bảng ---
+        document.getElementById('logClass').addEventListener('change', () => {
+            const cid = document.getElementById('logClass').value;
+            const sid = document.getElementById('logSubject').value;
+            if(cid && sid) loadLogs(cid, sid);
+        });
+        document.getElementById('logSubject').addEventListener('change', () => {
+            const cid = document.getElementById('logClass').value;
+            const sid = document.getElementById('logSubject').value;
+            if(cid && sid) loadLogs(cid, sid);
+        });
+
+        // Init
+        loadClasses();
+        loadSubjects();
+    </script>
+</body>
+</html>
