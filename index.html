@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản Lý Báo Giảng Pro</title>
+    <title>Hệ Thống Báo Giảng Pro - Đã Sửa Lỗi</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <style>
         body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .nav-tabs { border-bottom: 2px solid #dee2e6; }
-        .nav-link { font-weight: 600; color: #6c757d; }
+        .nav-link { font-weight: 600; color: #6c757d; cursor: pointer; }
         .nav-link.active { color: #0d6efd !important; border-bottom: 3px solid #0d6efd !important; background: none !important; border: none; }
         .progress { height: 10px; border-radius: 5px; }
+        .table-group-divider { border-top: 3px solid #dee2e6; }
     </style>
 </head>
 <body>
@@ -20,15 +21,21 @@
         <h2 class="text-center mb-4 text-primary fw-bold">HỆ THỐNG QUẢN LÝ GIẢNG DẠY</h2>
         
         <ul class="nav nav-tabs mb-4" id="mainTab" role="tablist">
-            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-dashboard">Tổng Hợp</button></li>
-            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-baogiang">Báo Giảng Chi Tiết</button></li>
-            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-config">Cấu Hình Lớp/Môn</button></li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#tab-dashboard" type="button" role="tab">Tổng Hợp</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="baogiang-tab" data-bs-toggle="tab" data-bs-target="#tab-baogiang" type="button" role="tab">Báo Giảng</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#tab-config" type="button" role="tab">Cấu Hình</button>
+            </li>
         </ul>
 
-        <div class="tab-content">
-            <div class="tab-pane fade show active" id="tab-dashboard">
+        <div class="tab-content" id="myTabContent">
+            <div class="tab-pane fade show active" id="tab-dashboard" role="tabpanel" aria-labelledby="dashboard-tab">
                 <div class="card p-4">
-                    <h5 class="fw-bold mb-3 text-secondary">Tiến Độ Chương Trình Các Lớp</h5>
+                    <h5 class="fw-bold mb-3 text-secondary border-bottom pb-2">Tiến Độ Chương Trình Các Lớp</h5>
                     <div class="table-responsive">
                         <table class="table align-middle">
                             <thead class="table-light">
@@ -41,26 +48,26 @@
                                 </tr>
                             </thead>
                             <tbody id="dashboardBody">
-                                <tr><td colspan="5" class="text-center">Đang tính toán dữ liệu...</td></tr>
+                                <tr><td colspan="5" class="text-center">Đang tải dữ liệu...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="tab-baogiang">
+            <div class="tab-pane fade" id="tab-baogiang" role="tabpanel" aria-labelledby="baogiang-tab">
                 <div class="row">
                     <div class="col-lg-4">
-                        <div class="card p-3 mb-4">
+                        <div class="card p-3 mb-4 border-start border-primary border-4">
                             <form id="logForm">
-                                <div class="mb-3"><label class="form-label fw-bold">Thông tin dạy</label>
+                                <div class="mb-3"><label class="form-label fw-bold small">Thông tin ngày dạy</label>
                                     <input type="date" id="logDate" class="form-control mb-2" required>
                                     <select id="logClass" class="form-select mb-2" required><option value="">Chọn lớp...</option></select>
                                     <select id="logSubject" class="form-select mb-2" required><option value="">Chọn môn...</option></select>
                                 </div>
-                                <div class="mb-3"><label class="form-label fw-bold">Nội dung</label>
-                                    <input type="number" id="logHours" class="form-control mb-2" placeholder="Số giờ dạy" required>
-                                    <input type="text" id="logAbsent" class="form-control" placeholder="DS vắng (VD: Long(P); 0 nếu đủ)" required>
+                                <div class="mb-3"><label class="form-label fw-bold small">Nội dung thực tế</label>
+                                    <input type="number" id="logHours" class="form-control mb-2" placeholder="Số tiết dạy" required min="1">
+                                    <input type="text" id="logAbsent" class="form-control" placeholder="Sinh viên vắng (VD: Long; 0 nếu đủ)" required>
                                 </div>
                                 <button type="submit" class="btn btn-primary w-100 fw-bold">Lưu Báo Giảng</button>
                             </form>
@@ -69,39 +76,41 @@
                     <div class="col-lg-8">
                         <div class="card p-3">
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="fw-bold mb-0">Lịch sử chi tiết <span id="filterLabel" class="text-primary"></span></h6>
-                                <button id="btnExport" class="btn btn-outline-success btn-sm">Xuất Excel</button>
+                                <h6 class="fw-bold mb-0">Lịch sử dạy học <span id="filterLabel" class="text-danger ms-2"></span></h6>
+                                <button id="btnExport" class="btn btn-success btn-sm px-3">Tải file Excel</button>
                             </div>
-                            <table class="table table-sm table-bordered text-center" id="logTable">
-                                <thead class="table-light small">
-                                    <tr><th>STT</th><th>Ngày</th><th>Nội dung</th><th>LT</th><th>TH</th><th>KT</th><th>Vắng</th><th>#</th></tr>
-                                </thead>
-                                <tbody id="tableBody" class="small"></tbody>
-                            </table>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered text-center table-hover" id="logTable">
+                                    <thead class="table-dark small">
+                                        <tr><th>STT</th><th>Ngày</th><th>Chương/Nội dung</th><th>LT</th><th>TH</th><th>KT</th><th>Vắng</th><th>#</th></tr>
+                                    </thead>
+                                    <tbody id="tableBody" class="small"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="tab-config">
+            <div class="tab-pane fade" id="tab-config" role="tabpanel" aria-labelledby="config-tab">
                 <div class="row">
                     <div class="col-md-5">
-                        <div class="card p-3 mb-3">
-                            <h6>Thêm Lớp</h6>
+                        <div class="card p-3 mb-3 border-start border-success border-4">
+                            <h6 class="fw-bold">Quản lý Lớp</h6>
                             <div class="input-group mb-3">
-                                <input type="text" id="className" class="form-control" placeholder="Tên lớp">
+                                <input type="text" id="className" class="form-control" placeholder="Tên lớp (VD: DA24)">
                                 <button class="btn btn-success" id="btnAddClass">Thêm</button>
                             </div>
-                            <ul id="classList" class="list-group small"></ul>
+                            <ul id="classList" class="list-group list-group-flush small"></ul>
                         </div>
                     </div>
                     <div class="col-md-7">
-                        <div class="card p-3">
-                            <h6>Thêm Môn & Chương Trình</h6>
+                        <div class="card p-3 border-start border-warning border-4">
+                            <h6 class="fw-bold">Quản lý Môn học</h6>
                             <input type="text" id="subjectName" class="form-control mb-2" placeholder="Tên môn học">
                             <textarea id="subjectChapters" class="form-control mb-2" rows="3" placeholder="Chương 1, 5, 5, 0 (Tên, LT, TH, KT)"></textarea>
-                            <button class="btn btn-success mb-3 w-100" id="btnAddSubject">Lưu Môn Học</button>
-                            <ul id="subjectList" class="list-group small"></ul>
+                            <button class="btn btn-success mb-3 w-100" id="btnAddSubject">Lưu Môn</button>
+                            <ul id="subjectList" class="list-group list-group-flush small"></ul>
                         </div>
                     </div>
                 </div>
@@ -109,6 +118,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, query, where, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -125,54 +135,73 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- CORE LOGIC: DASHBOARD TỔNG HỢP ---
-        async function refreshDashboard() {
-            const subjectsSnap = await getDocs(collection(db, "subjects"));
-            const classesSnap = await getDocs(collection(db, "classes"));
-            const logsSnap = await getDocs(collection(db, "teaching_logs"));
-            
-            let subjectsMap = {};
-            subjectsSnap.forEach(d => subjectsMap[d.id] = d.data());
-            
-            let logs = [];
-            logsSnap.forEach(d => logs.push(d.data()));
+        // --- HÀM GẮN VÀO WINDOW ĐỂ SỬ DỤNG NGOÀI MODULE ---
+        window.del = async (col, id) => { 
+            if(confirm('Bạn có chắc muốn xóa mục này?')) { 
+                await deleteDoc(doc(db, col, id)); 
+                window.location.reload(); 
+            } 
+        };
 
-            let html = "";
-            classesSnap.forEach(clsDoc => {
-                const classId = clsDoc.id;
-                for (let subId in subjectsMap) {
-                    const subData = subjectsMap[subId];
-                    const totalRequired = subData.chapters.reduce((sum, c) => sum + c.lt + c.th + c.kt, 0);
-                    
-                    // Lọc logs của đúng cặp Lớp - Môn này
-                    const classSubLogs = logs.filter(l => l.classId === classId && l.subjectId === subId);
-                    const totalDone = classSubLogs.reduce((sum, l) => sum + l.lt + l.th + l.kt, 0);
-                    
-                    if (totalDone > 0) {
-                        const percent = Math.min(Math.round((totalDone / totalRequired) * 100), 100);
-                        const statusColor = percent === 100 ? 'bg-success' : (percent > 50 ? 'bg-primary' : 'bg-warning');
-                        
-                        html += `
-                        <tr>
-                            <td class="fw-bold">${classId}</td>
-                            <td>${subId}</td>
-                            <td style="width: 30%">
-                                <div class="progress"><div class="progress-bar ${statusColor}" style="width: ${percent}%"></div></div>
-                                <small class="text-muted">${percent}% hoàn thành</small>
-                            </td>
-                            <td class="text-center"><strong>${totalDone}</strong> / ${totalRequired} tiết</td>
-                            <td><span class="badge ${percent === 100 ? 'bg-success' : 'bg-light text-dark'}">${percent === 100 ? 'Hoàn thành' : 'Đang dạy'}</span></td>
-                        </tr>`;
-                    }
+        window.delLogBatch = async (ts) => {
+            if(confirm('Xóa lượt dạy này? Tất cả các dòng liên quan sẽ bị xóa.')) {
+                const q = query(collection(db, "teaching_logs"), where("createdAt", "==", ts));
+                const snap = await getDocs(q);
+                for (const d of snap.docs) {
+                    await deleteDoc(doc(db, "teaching_logs", d.id));
                 }
-            });
-            document.getElementById('dashboardBody').innerHTML = html || '<tr><td colspan="5" class="text-center">Chưa có dữ liệu giảng dạy.</td></tr>';
+                setTimeout(() => window.location.reload(), 500);
+            }
+        };
+
+        // --- DASHBOARD TỔNG HỢP ---
+        async function refreshDashboard() {
+            try {
+                const subjectsSnap = await getDocs(collection(db, "subjects"));
+                const classesSnap = await getDocs(collection(db, "classes"));
+                const logsSnap = await getDocs(collection(db, "teaching_logs"));
+                
+                let subjectsMap = {};
+                subjectsSnap.forEach(d => subjectsMap[d.id] = d.data());
+                let logs = [];
+                logsSnap.forEach(d => logs.push(d.data()));
+
+                let html = "";
+                classesSnap.forEach(clsDoc => {
+                    const classId = clsDoc.id;
+                    let isFirst = true;
+                    for (let subId in subjectsMap) {
+                        const subData = subjectsMap[subId];
+                        if (!subData.chapters) continue;
+                        
+                        const totalReq = subData.chapters.reduce((s, c) => s + (c.lt||0) + (c.th||0) + (c.kt||0), 0);
+                        const classSubLogs = logs.filter(l => l.classId === classId && l.subjectId === subId);
+                        const totalDone = classSubLogs.reduce((s, l) => s + (l.lt||0) + (l.th||0) + (l.kt||0), 0);
+                        
+                        if (totalDone > 0) {
+                            const percent = Math.min(Math.round((totalDone / totalReq) * 100), 100);
+                            const color = percent === 100 ? 'bg-success' : (percent > 50 ? 'bg-primary' : 'bg-warning');
+                            const borderStyle = isFirst ? 'table-group-divider' : '';
+                            
+                            html += `<tr class="${borderStyle}">
+                                <td class="fw-bold text-primary">${classId}</td>
+                                <td>${subId}</td>
+                                <td style="width: 30%">
+                                    <div class="progress"><div class="progress-bar ${color}" style="width: ${percent}%"></div></div>
+                                    <small class="text-muted small">${percent}%</small>
+                                </td>
+                                <td class="text-center"><strong>${totalDone}</strong>/${totalReq}</td>
+                                <td><span class="badge ${percent === 100 ? 'bg-success' : 'bg-secondary'}">${percent === 100 ? 'Xong' : 'Đang dạy'}</span></td>
+                            </tr>`;
+                            isFirst = false;
+                        }
+                    }
+                });
+                document.getElementById('dashboardBody').innerHTML = html || '<tr><td colspan="5" class="text-center">Chưa có dữ liệu</td></tr>';
+            } catch (e) { console.error(e); }
         }
 
-        // --- CÁC HÀM CŨ (Đã tối ưu) ---
-        // (Thêm lớp, Thêm môn, Xóa, Lưu báo giảng, Export...)
-        // [Tôi đã tinh chỉnh lại các sự kiện để sau khi Lưu báo giảng sẽ tự gọi refreshDashboard()]
-
+        // --- CẤU HÌNH LỚP & MÔN ---
         document.getElementById('btnAddClass').onclick = async () => {
             const name = document.getElementById('className').value.trim();
             if(name) { await setDoc(doc(db, "classes", name), {name}); loadClasses(); }
@@ -191,20 +220,21 @@
             }
         };
 
+        // --- LƯU BÁO GIẢNG ---
         document.getElementById('logForm').onsubmit = async (e) => {
             e.preventDefault();
             const date = document.getElementById('logDate').value;
             const classId = document.getElementById('logClass').value;
             const subjectId = document.getElementById('logSubject').value;
             let newHours = Number(document.getElementById('logHours').value);
-            let absentStr = document.getElementById('logAbsent').value === "0" ? "Lớp đủ" : document.getElementById('logAbsent').value;
+            let absent = document.getElementById('logAbsent').value === "0" ? "Lớp đủ" : document.getElementById('logAbsent').value;
 
-            // Logic Waterfall (Trừ lùi) giữ nguyên...
             const subSnap = await getDocs(query(collection(db, "subjects"), where("name", "==", subjectId)));
             let chapters = []; subSnap.forEach(d => chapters = d.data().chapters);
 
             const logsSnap = await getDocs(query(collection(db, "teaching_logs"), where("classId", "==", classId), where("subjectId", "==", subjectId)));
-            let pastHours = 0; logsSnap.forEach(d => pastHours += (d.data().lt + d.data().th + d.data().kt));
+            let pastHours = 0; 
+            logsSnap.forEach(d => { if(d.data().classId === classId) pastHours += (d.data().lt + d.data().th + d.data().kt); });
 
             let offset = pastHours;
             const nowTime = Date.now();
@@ -224,22 +254,46 @@
                 }
                 if (used) {
                     await addDoc(collection(db, "teaching_logs"), { 
-                        classId, subjectId, date, chapterName: chap.name, ...allocated, absent: absentStr, createdAt: nowTime 
+                        classId, subjectId, date, chapterName: chap.name, ...allocated, absent, createdAt: nowTime 
                     });
                 }
             }
-            refreshDashboard(); // Cập nhật lại Dashboard sau khi lưu
-            loadLogs(classId, subjectId);
+            refreshDashboard(); loadLogs(classId, subjectId);
         };
 
-        // --- Hàm load dữ liệu ban đầu ---
+        // --- HIỂN THỊ LOGS ---
+        async function loadLogs(classId, subjectId) {
+            if(!classId || !subjectId) return;
+            document.getElementById('filterLabel').innerText = `(${classId} - ${subjectId})`;
+            const q = query(collection(db, "teaching_logs"), where("classId", "==", classId), where("subjectId", "==", subjectId));
+            const snap = await getDocs(q);
+            let arr = []; snap.forEach(d => { if(d.data().classId === classId) arr.push({id: d.id, ...d.data()}) });
+            arr.sort((a,b) => a.createdAt - b.createdAt);
+            let h = "";
+            arr.forEach((d, i) => {
+                h += `<tr><td>${i+1}</td><td>${d.date}</td><td class="text-start">${d.chapterName}</td><td>${d.lt}</td><td>${d.th}</td><td>${d.kt}</td><td>${d.absent}</td><td><button class="btn btn-sm text-danger p-0" onclick="delLogBatch(${d.createdAt})">Xóa</button></td></tr>`;
+            });
+            document.getElementById('tableBody').innerHTML = h || '<tr><td colspan="8">Không có dữ liệu</td></tr>';
+        }
+
+        // --- XUẤT EXCEL ---
+        document.getElementById('btnExport').onclick = () => {
+            const cid = document.getElementById('logClass').value || "Lop";
+            const sid = document.getElementById('logSubject').value || "Mon";
+            let table = document.getElementById("logTable").cloneNode(true);
+            table.querySelectorAll('tr').forEach(row => row.removeChild(row.lastElementChild));
+            let wb = XLSX.utils.table_to_book(table, {sheet: "Báo Giảng"});
+            XLSX.writeFile(wb, `BaoGiang_${cid}_${sid}.xlsx`);
+        };
+
+        // --- LOAD DATA BAN ĐẦU ---
         async function loadClasses() {
             const snap = await getDocs(collection(db, "classes"));
             let h = '<option value="">Chọn lớp...</option>';
             let list = '';
             snap.forEach(d => { 
                 h += `<option value="${d.id}">${d.id}</option>`;
-                list += `<li class="list-group-item d-flex justify-content-between">${d.id} <button class="btn btn-sm text-danger" onclick="del('classes','${d.id}')">Xóa</button></li>`;
+                list += `<li class="list-group-item d-flex justify-content-between">${d.id} <button class="btn btn-sm text-danger p-0" onclick="del('classes','${d.id}')">Xóa</button></li>`;
             });
             document.getElementById('logClass').innerHTML = h;
             document.getElementById('classList').innerHTML = list;
@@ -251,38 +305,15 @@
             let list = '';
             snap.forEach(d => { 
                 h += `<option value="${d.id}">${d.id}</option>`;
-                list += `<li class="list-group-item">${d.id} <button class="btn btn-sm text-danger float-end" onclick="del('subjects','${d.id}')">Xóa</button></li>`;
+                list += `<li class="list-group-item d-flex justify-content-between">${d.id} <button class="btn btn-sm text-danger p-0" onclick="del('subjects','${d.id}')">Xóa</button></li>`;
             });
             document.getElementById('logSubject').innerHTML = h;
             document.getElementById('subjectList').innerHTML = list;
         }
 
-        async function loadLogs(classId, subjectId) {
-            const q = query(collection(db, "teaching_logs"), where("classId", "==", classId), where("subjectId", "==", subjectId));
-            const snap = await getDocs(q);
-            let arr = []; snap.forEach(d => arr.push({id: d.id, ...d.data()}));
-            arr.sort((a,b) => a.createdAt - b.createdAt);
-            let h = "";
-            arr.forEach((d, i) => {
-                h += `<tr><td>${i+1}</td><td>${d.date}</td><td>${d.chapterName}</td><td>${d.lt}</td><td>${d.th}</td><td>${d.kt}</td><td>${d.absent}</td><td><button class="btn btn-sm p-0 text-danger" onclick="delLogBatch(${d.createdAt})">Xóa</button></td></tr>`;
-            });
-            document.getElementById('tableBody').innerHTML = h;
-        }
-
-        window.del = async (col, id) => { if(confirm('Xóa?')) { await deleteDoc(doc(db, col, id)); location.reload(); } };
-        window.delLogBatch = async (ts) => {
-            if(confirm('Xóa lượt dạy này?')) {
-                const q = query(collection(db, "teaching_logs"), where("createdAt", "==", ts));
-                const snap = await getDocs(q);
-                snap.forEach(async d => await deleteDoc(doc(db, "teaching_logs", d.id)));
-                setTimeout(() => location.reload(), 500);
-            }
-        };
-
         document.getElementById('logClass').onchange = () => loadLogs(document.getElementById('logClass').value, document.getElementById('logSubject').value);
         document.getElementById('logSubject').onchange = () => loadLogs(document.getElementById('logClass').value, document.getElementById('logSubject').value);
 
-        // Khởi tạo
         loadClasses(); loadSubjects(); refreshDashboard();
         document.getElementById('logDate').valueAsDate = new Date();
     </script>
