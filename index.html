@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống Báo Giảng Pro - Đã Sửa Lỗi</title>
+    <title>Hệ Thống Báo Giảng Pro</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <style>
@@ -35,7 +35,10 @@
         <div class="tab-content" id="myTabContent">
             <div class="tab-pane fade show active" id="tab-dashboard" role="tabpanel" aria-labelledby="dashboard-tab">
                 <div class="card p-4">
-                    <h5 class="fw-bold mb-3 text-secondary border-bottom pb-2">Tiến Độ Chương Trình Các Lớp</h5>
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                        <h5 class="fw-bold text-secondary mb-0">Tiến Độ Chương Trình Các Lớp</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshDashboard()">Làm mới dữ liệu</button>
+                    </div>
                     <div class="table-responsive">
                         <table class="table align-middle">
                             <thead class="table-light">
@@ -82,7 +85,7 @@
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered text-center table-hover" id="logTable">
                                     <thead class="table-dark small">
-                                        <tr><th>STT</th><th>Ngày</th><th>Chương/Nội dung</th><th>LT</th><th>TH</th><th>KT</th><th>Vắng</th><th>#</th></tr>
+                                        <tr><th>STT</th><th>Ngày</th><th>Chương/Nội dung</th><th>LT</th><th>TH</th><th>KT</th><th>Vắng</th><th>Thao tác</th></tr>
                                     </thead>
                                     <tbody id="tableBody" class="small"></tbody>
                                 </table>
@@ -107,9 +110,14 @@
                     <div class="col-md-7">
                         <div class="card p-3 border-start border-warning border-4">
                             <h6 class="fw-bold">Quản lý Môn học</h6>
-                            <input type="text" id="subjectName" class="form-control mb-2" placeholder="Tên môn học">
-                            <textarea id="subjectChapters" class="form-control mb-2" rows="3" placeholder="Chương 1, 5, 5, 0 (Tên, LT, TH, KT)"></textarea>
-                            <button class="btn btn-success mb-3 w-100" id="btnAddSubject">Lưu Môn</button>
+                            <form id="subjectForm">
+                                <input type="text" id="subjectName" class="form-control mb-2" placeholder="Tên môn học" required>
+                                <textarea id="subjectChapters" class="form-control mb-2" rows="4" placeholder="Chương 1, 5, 5, 0 (Tên, LT, TH, KT)" required></textarea>
+                                <div class="d-flex gap-2 mb-3">
+                                    <button type="submit" class="btn btn-success flex-grow-1" id="btnAddSubject">Lưu Môn Học</button>
+                                    <button type="button" class="btn btn-secondary d-none" id="btnCancelEditSubject">Hủy</button>
+                                </div>
+                            </form>
                             <ul id="subjectList" class="list-group list-group-flush small"></ul>
                         </div>
                     </div>
@@ -121,8 +129,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, query, where, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, getDoc, query, where, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        // === ĐIỀN API KEY CỦA BẠN VÀO ĐÂY ===
         const firebaseConfig = {
             apiKey: "AIzaSyDLxzBHHGWvRW8CLtHORxNRzZHRU5TmEr0",
             authDomain: "teaching-lac.firebaseapp.com",
@@ -135,27 +144,63 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- HÀM GẮN VÀO WINDOW ĐỂ SỬ DỤNG NGOÀI MODULE ---
+        // --- HÀM GẮN VÀO WINDOW ---
+        // 1. Xóa Lớp / Môn
         window.del = async (col, id) => { 
-            if(confirm('Bạn có chắc muốn xóa mục này?')) { 
+            if(confirm(`Bạn có chắc muốn xóa [${id}]?`)) { 
                 await deleteDoc(doc(db, col, id)); 
-                window.location.reload(); 
+                if(col === 'classes') loadClasses();
+                if(col === 'subjects') loadSubjects();
+                refreshDashboard();
             } 
         };
 
-        window.delLogBatch = async (ts) => {
-            if(confirm('Xóa lượt dạy này? Tất cả các dòng liên quan sẽ bị xóa.')) {
-                const q = query(collection(db, "teaching_logs"), where("createdAt", "==", ts));
-                const snap = await getDocs(q);
-                for (const d of snap.docs) {
-                    await deleteDoc(doc(db, "teaching_logs", d.id));
-                }
-                setTimeout(() => window.location.reload(), 500);
+        // 2. Xóa 1 dòng báo giảng cụ thể
+        window.delLog = async (id) => {
+            if(confirm('Xóa dòng báo giảng này? Hệ thống sẽ tự động tính lại tổng số tiết.')) {
+                await deleteDoc(doc(db, "teaching_logs", id));
+                
+                // Cập nhật lại giao diện ngay lập tức
+                const cid = document.getElementById('logClass').value;
+                const sid = document.getElementById('logSubject').value;
+                if(cid && sid) loadLogs(cid, sid);
+                refreshDashboard();
             }
         };
 
+        // 3. Nút Sửa Môn học
+        window.editSubject = async (id) => {
+            const docRef = doc(db, "subjects", id);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                document.getElementById('subjectName').value = data.name;
+                document.getElementById('subjectName').readOnly = true; // Khóa Tên môn để cập nhật đúng ID
+                
+                // Chuyển mảng JSON về lại text để người dùng sửa
+                const chaptersText = data.chapters.map(c => `${c.name}, ${c.lt}, ${c.th}, ${c.kt}`).join('\n');
+                document.getElementById('subjectChapters').value = chaptersText;
+                
+                document.getElementById('btnAddSubject').innerText = "Cập Nhật";
+                document.getElementById('btnAddSubject').classList.replace('btn-success', 'btn-warning');
+                document.getElementById('btnCancelEditSubject').classList.remove('d-none');
+                
+                // Cuộn trang lên form
+                document.getElementById('subjectName').scrollIntoView({ behavior: 'smooth' });
+            }
+        };
+
+        // Hủy quá trình sửa
+        document.getElementById('btnCancelEditSubject').onclick = () => {
+            document.getElementById('subjectForm').reset();
+            document.getElementById('subjectName').readOnly = false;
+            document.getElementById('btnAddSubject').innerText = "Lưu Môn Học";
+            document.getElementById('btnAddSubject').classList.replace('btn-warning', 'btn-success');
+            document.getElementById('btnCancelEditSubject').classList.add('d-none');
+        };
+
         // --- DASHBOARD TỔNG HỢP ---
-        async function refreshDashboard() {
+        window.refreshDashboard = async () => {
             try {
                 const subjectsSnap = await getDocs(collection(db, "subjects"));
                 const classesSnap = await getDocs(collection(db, "classes"));
@@ -180,7 +225,7 @@
                         
                         if (totalDone > 0) {
                             const percent = Math.min(Math.round((totalDone / totalReq) * 100), 100);
-                            const color = percent === 100 ? 'bg-success' : (percent > 50 ? 'bg-primary' : 'bg-warning');
+                            const color = percent >= 100 ? 'bg-success' : (percent > 50 ? 'bg-primary' : 'bg-warning');
                             const borderStyle = isFirst ? 'table-group-divider' : '';
                             
                             html += `<tr class="${borderStyle}">
@@ -191,7 +236,7 @@
                                     <small class="text-muted small">${percent}%</small>
                                 </td>
                                 <td class="text-center"><strong>${totalDone}</strong>/${totalReq}</td>
-                                <td><span class="badge ${percent === 100 ? 'bg-success' : 'bg-secondary'}">${percent === 100 ? 'Xong' : 'Đang dạy'}</span></td>
+                                <td><span class="badge ${percent >= 100 ? 'bg-success' : 'bg-secondary'}">${percent >= 100 ? 'Xong' : 'Đang dạy'}</span></td>
                             </tr>`;
                             isFirst = false;
                         }
@@ -199,25 +244,30 @@
                 });
                 document.getElementById('dashboardBody').innerHTML = html || '<tr><td colspan="5" class="text-center">Chưa có dữ liệu</td></tr>';
             } catch (e) { console.error(e); }
-        }
+        };
 
         // --- CẤU HÌNH LỚP & MÔN ---
         document.getElementById('btnAddClass').onclick = async () => {
             const name = document.getElementById('className').value.trim();
-            if(name) { await setDoc(doc(db, "classes", name), {name}); loadClasses(); }
+            if(name) { await setDoc(doc(db, "classes", name), {name}); document.getElementById('className').value = ""; loadClasses(); }
         };
 
-        document.getElementById('btnAddSubject').onclick = async () => {
+        document.getElementById('subjectForm').onsubmit = async (e) => {
+            e.preventDefault();
             const name = document.getElementById('subjectName').value.trim();
             const text = document.getElementById('subjectChapters').value.trim();
-            if(name && text) {
-                const chapters = text.split('\n').map(l => {
-                    const p = l.split(',');
-                    return { name: p[0].trim(), lt: Number(p[1]), th: Number(p[2]), kt: Number(p[3]) };
-                });
-                await setDoc(doc(db, "subjects", name), {name, chapters});
-                loadSubjects();
-            }
+            
+            const chapters = text.split('\n').map(l => {
+                const p = l.split(',');
+                return { name: p[0].trim(), lt: Number(p[1]), th: Number(p[2]), kt: Number(p[3]) };
+            });
+            
+            // Hàm setDoc sẽ tự động ghi đè dữ liệu mới nếu ID đã tồn tại
+            await setDoc(doc(db, "subjects", name), {name, chapters});
+            
+            document.getElementById('btnCancelEditSubject').click(); // Reset form sau khi lưu
+            loadSubjects();
+            refreshDashboard(); // Cập nhật lại Dashboard với tổng số tiết mới
         };
 
         // --- LƯU BÁO GIẢNG ---
@@ -258,7 +308,10 @@
                     });
                 }
             }
-            refreshDashboard(); loadLogs(classId, subjectId);
+            document.getElementById('logHours').value = "";
+            document.getElementById('logAbsent').value = "";
+            refreshDashboard(); 
+            loadLogs(classId, subjectId);
         };
 
         // --- HIỂN THỊ LOGS ---
@@ -271,7 +324,9 @@
             arr.sort((a,b) => a.createdAt - b.createdAt);
             let h = "";
             arr.forEach((d, i) => {
-                h += `<tr><td>${i+1}</td><td>${d.date}</td><td class="text-start">${d.chapterName}</td><td>${d.lt}</td><td>${d.th}</td><td>${d.kt}</td><td>${d.absent}</td><td><button class="btn btn-sm text-danger p-0" onclick="delLogBatch(${d.createdAt})">Xóa</button></td></tr>`;
+                h += `<tr><td>${i+1}</td><td>${d.date}</td><td class="text-start">${d.chapterName}</td><td>${d.lt}</td><td>${d.th}</td><td>${d.kt}</td><td>${d.absent}</td>
+                    <td><button class="btn btn-sm btn-outline-danger p-0 px-2" onclick="delLog('${d.id}')">Xóa</button></td>
+                </tr>`;
             });
             document.getElementById('tableBody').innerHTML = h || '<tr><td colspan="8">Không có dữ liệu</td></tr>';
         }
@@ -293,7 +348,9 @@
             let list = '';
             snap.forEach(d => { 
                 h += `<option value="${d.id}">${d.id}</option>`;
-                list += `<li class="list-group-item d-flex justify-content-between">${d.id} <button class="btn btn-sm text-danger p-0" onclick="del('classes','${d.id}')">Xóa</button></li>`;
+                list += `<li class="list-group-item d-flex justify-content-between align-items-center">${d.id} 
+                    <button class="btn btn-sm text-danger p-0" onclick="del('classes','${d.id}')">Xóa</button>
+                </li>`;
             });
             document.getElementById('logClass').innerHTML = h;
             document.getElementById('classList').innerHTML = list;
@@ -305,7 +362,13 @@
             let list = '';
             snap.forEach(d => { 
                 h += `<option value="${d.id}">${d.id}</option>`;
-                list += `<li class="list-group-item d-flex justify-content-between">${d.id} <button class="btn btn-sm text-danger p-0" onclick="del('subjects','${d.id}')">Xóa</button></li>`;
+                list += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span class="text-primary fw-bold">${d.id}</span>
+                    <div>
+                        <button class="btn btn-sm btn-warning me-2 py-0" onclick="editSubject('${d.id}')">Sửa</button>
+                        <button class="btn btn-sm btn-danger py-0" onclick="del('subjects','${d.id}')">Xóa</button>
+                    </div>
+                </li>`;
             });
             document.getElementById('logSubject').innerHTML = h;
             document.getElementById('subjectList').innerHTML = list;
