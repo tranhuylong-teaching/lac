@@ -290,6 +290,67 @@
         document.getElementById('logSubject').onchange = () => loadLogs(document.getElementById('logClass').value, document.getElementById('logSubject').value);
 
         loadClasses(); loadSubjects(); refreshDashboard();
+
+        // --- XỬ LÝ THÊM LỚP HỌC ---
+        document.getElementById('btnAddClass').onclick = async () => {
+            const className = document.getElementById('className').value.trim();
+            if (!className) return;
+        
+            try {
+                // Lưu lớp học với ID là tên lớp
+                await setDoc(doc(db, "classes", className), { name: className });
+                document.getElementById('className').value = ""; // Xóa input
+                loadClasses(); // Cập nhật lại giao diện
+            } catch (error) {
+                console.error("Lỗi khi thêm lớp: ", error);
+            }
+        };
+        
+        // --- XỬ LÝ THÊM/CẬP NHẬT MÔN HỌC ---
+        document.getElementById('subjectForm').onsubmit = async (e) => {
+            e.preventDefault(); // Chặn hành vi tải lại trang mặc định của form
+            
+            const subjectName = document.getElementById('subjectName').value.trim();
+            const chaptersRaw = document.getElementById('subjectChapters').value.trim();
+        
+            if (!subjectName || !chaptersRaw) {
+                alert("Vui lòng nhập đầy đủ tên môn và thông tin chương!");
+                return;
+            }
+        
+            // Tách chuỗi từ Textarea thành mảng object (Ví dụ: "Chương 1, 5, 5, 0")
+            const chapters = chaptersRaw.split('\n').map(line => {
+                const parts = line.split(',').map(p => p.trim());
+                return {
+                    name: parts[0] || 'Chưa đặt tên',
+                    lt: Number(parts[1]) || 0,
+                    th: Number(parts[2]) || 0,
+                    kt: Number(parts[3]) || 0
+                };
+            });
+        
+            try {
+                // Lưu dữ liệu vào Firestore (dùng setDoc để id document chính là tên môn học)
+                await setDoc(doc(db, "subjects", subjectName), {
+                    name: subjectName,
+                    chapters: chapters
+                });
+        
+                // Reset lại form và trạng thái nút bấm
+                document.getElementById('subjectForm').reset();
+                document.getElementById('subjectName').readOnly = false;
+                document.getElementById('btnAddSubject').innerText = "Lưu Môn";
+                document.getElementById('btnCancelEditSubject').classList.add('d-none');
+        
+                // Tải lại danh sách môn học trên giao diện
+                loadSubjects();
+                
+            } catch (error) {
+                console.error("Lỗi khi lưu môn học: ", error);
+                alert("Có lỗi xảy ra khi lưu môn học!");
+            }
+        };
+        
         document.getElementById('logDate').valueAsDate = new Date();
     </script>
 </body>
